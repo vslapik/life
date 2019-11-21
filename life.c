@@ -1,7 +1,8 @@
 #include <assert.h>
 #include <curses.h>
-#include <stdlib.h>
 #include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #define LOOP
@@ -47,16 +48,25 @@ static int step(int xmax, int ymax, char board[][xmax])
     }
 }
 
-static void put_glider(int x, int y, int xmax, int ymax, char board[][xmax])
+static void put_glider(int x, int y, int xmax, int ymax, char board[][ymax])
 {
-    assert(y + 2 < ymax);
     assert(x + 2 < xmax);
+    assert(y + 2 < ymax);
 
     board[y + 2][x + 0] = 1;
     board[y + 2][x + 1] = 1;
     board[y + 2][x + 2] = 1;
     board[y + 1][x + 2] = 1;
     board[y + 0][x + 1] = 1;
+}
+
+static void fill_random(int xmax, int ymax, char board[][ymax])
+{
+    for (int i = 0; i < xmax; i++) {
+        for (int j = 0; j < ymax; j++) {
+            board[i][j] = (random() % 2);
+        }
+    }
 }
 
 void sig_winch(int in)
@@ -76,12 +86,9 @@ int main(void)
     signal(SIGWINCH, sig_winch);
 
     char board[LINES][COLS];
+    long long delay = 500000;
 
-    for (int i = 0; i < LINES; i++) {
-        for (int j = 0; j < COLS; j++) {
-            board[i][j] = (random() % 2);
-        }
-    }
+    fill_random(LINES, COLS, board);
 
     while (1) {
         step(COLS, LINES, board);
@@ -94,12 +101,36 @@ int main(void)
                 mvaddch(i, j, board[i][j] ? 'o' : ' ');
             }
         }
-        int ch = getch();
-        if (ch != ERR) {
-            put_glider(0, 0, COLS, LINES, board);
-        }
-//        usleep(20000);
-        usleep(2000);
+
+        long long d = 0;
+        do {
+            int ch = getch();
+            if (ch != ERR) {
+                switch (ch) {
+                    case 'r':
+                        fill_random(LINES, COLS, board);
+                        break;
+                    case 'q':
+                        should_exit = true;
+                        break;
+                    case 'g':
+                        put_glider(0, 0, LINES, COLS, board);
+                        break;
+                    case 'c':
+                        memset(board, 0, sizeof(board));
+                        break;
+                    case '-':
+                        delay *= 2;
+                        break;
+                    case '+':
+                        delay /= 2;
+                        delay += 1;
+                        break;
+                }
+            }
+            usleep(delay > 10000 ? 10000 : delay);
+            d += 10000;
+        } while (d < delay);
     }
 
 exit:

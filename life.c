@@ -5,12 +5,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#define LOOP
+//#define LOOP
 #define ARRAY_LEN(a) (sizeof(a) / sizeof(a[0]))
 
 static sig_atomic_t should_exit = false;
+static bool board_loop = false;
 
-static int step(int xmax, int ymax, char board[][xmax])
+static void step(int xmax, int ymax, char board[][xmax])
 {
     static const int d[][2] = {{-1, -1}, {-1, 0}, {-1, 1},
                                { 0, -1},          {0,  1},
@@ -24,10 +25,10 @@ static int step(int xmax, int ymax, char board[][xmax])
             for (int k = 0; k < ARRAY_LEN(d); k++) {
                 ii = i + d[k][0];
                 jj = j + d[k][1];
-#ifdef LOOP
-                ii = (ii + ymax) % ymax;
-                jj = (jj + xmax) % xmax;
-#endif
+                if (board_loop) {
+                    ii = (ii + ymax) % ymax;
+                    jj = (jj + xmax) % xmax;
+                }
                 if ((ii >= 0) && (ii < ymax) && (jj >= 0) && (jj < xmax)) {
                     c += (board[ii][jj] & 0x01);
                 }
@@ -107,6 +108,9 @@ int main(void)
             int ch = getch();
             if (ch != ERR) {
                 switch (ch) {
+                    case 'l':
+                        board_loop = !board_loop;
+                        break;
                     case 'r':
                         fill_random(LINES, COLS, board);
                         break;
@@ -134,9 +138,6 @@ int main(void)
     }
 
 exit:
-
-    getch();
     endwin();
-
-    exit(0);
+    exit(EXIT_SUCCESS);
 }

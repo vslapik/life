@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof(a[0]))
@@ -10,45 +11,54 @@
 static sig_atomic_t should_exit = false;
 static bool board_loop = true;
 
-static void step(int xmax, int ymax, char board[][xmax])
+static void step(int xmax, int ymax, char board[xmax][ymax])
 {
     static const int d[][2] = {{-1, -1}, {-1, 0}, {-1, 1},
                                { 0, -1},          {0,  1},
                                { 1, -1}, { 1, 0}, {1,  1}};
 
-    for (int i = 0; i < ymax; i++) {
-        for (int j = 0; j < xmax; j++) {
+    for (int i = 0; i < xmax; i++) {
+        for (int j = 0; j < ymax; j++) {
             int c = 0;
-            int ii;
-            int jj;
+            int ii, jj;
             for (int k = 0; k < ARRAY_LEN(d); k++) {
                 ii = i + d[k][0];
                 jj = j + d[k][1];
                 if (board_loop) {
-                    ii = (ii + ymax) % ymax;
-                    jj = (jj + xmax) % xmax;
+                    ii = (ii + xmax) % xmax;
+                    jj = (jj + ymax) % ymax;
                 }
-                if ((ii >= 0) && (ii < ymax) && (jj >= 0) && (jj < xmax)) {
+                if ((ii >= 0) && (ii < xmax) &&
+                    (jj >= 0) && (jj < ymax)) {
                     c += (board[ii][jj] & 0x01);
                 }
             }
 
-            if (c == 3) {
-                board[i][j] |= 0x02;
-            } else if (c == 2 && (board[i][j] == 1)) {
+            if ((c == 3) ||
+                (c == 2 && (board[i][j] == 1))) {
                 board[i][j] |= 0x02;
             }
         }
     }
 
-    for (int i = 0; i < ymax; i++) {
-        for (int j = 0; j < xmax; j++) {
+    for (int i = 0; i < xmax; i++) {
+        for (int j = 0; j < ymax; j++) {
             board[i][j] >>= 1;
         }
     }
 }
 
-static void put_glider(int x, int y, int xmax, int ymax, char board[][ymax])
+static void draw_board(int xmax, int ymax, char board[xmax][ymax])
+{
+    for (int i = 0; i < xmax; i++) {
+        for (int j = 0; j < ymax; j++) {
+            mvaddch(i, j, board[i][j] ? 'o' : ' ');
+        }
+    }
+    refresh();
+}
+
+static void put_glider(int x, int y, int xmax, int ymax, char board[xmax][ymax])
 {
     assert(x + 2 < xmax);
     assert(y + 2 < ymax);
@@ -60,7 +70,7 @@ static void put_glider(int x, int y, int xmax, int ymax, char board[][ymax])
     board[x + 2][y + 2] = 1;
 }
 
-static void put_gosper_gun(int x, int y, int xmax, int ymax, char board[][ymax])
+static void put_gosper_gun(int x, int y, int xmax, int ymax, char board[xmax][ymax])
 {
     assert(x + 37 < xmax);
     assert(y + 10 < ymax);
@@ -89,7 +99,7 @@ static void put_gosper_gun(int x, int y, int xmax, int ymax, char board[][ymax])
     }
 }
 
-static void fill_random(int xmax, int ymax, char board[][ymax])
+static void fill_random(int xmax, int ymax, char board[xmax][ymax])
 {
     for (int i = 0; i < xmax; i++) {
         for (int j = 0; j < ymax; j++) {
@@ -106,6 +116,8 @@ void sig_winch(int in)
 
 int main(void)
 {
+    srand(time(0));
+
     initscr();
     cbreak();
     noecho();
@@ -116,25 +128,16 @@ int main(void)
 
     char board[LINES][COLS];
     long long delay = 500000;
+    long long d = 0;
 
     fill_random(LINES, COLS, board);
 
     while (1) {
 
-        refresh();
+        draw_board(LINES, COLS, board);
+        step(LINES, COLS, board);
 
-        for (int i = 0; i < LINES; i++) {
-            for (int j = 0; j < COLS; j++) {
-                mvaddch(i, j, board[i][j] ? 'o' : ' ');
-                if (should_exit) {
-                    goto exit;
-                }
-            }
-        }
-
-        step(COLS, LINES, board);
-
-        long long d = 0;
+        d = 0;
         do {
             int ch = getch();
             if (ch != ERR) {
@@ -144,18 +147,22 @@ int main(void)
                         break;
                     case 'r':
                         fill_random(LINES, COLS, board);
+                        draw_board(LINES, COLS, board);
                         break;
                     case 'q':
                         should_exit = true;
                         break;
                     case 'g':
                         put_glider(0, 0, LINES, COLS, board);
+                        draw_board(LINES, COLS, board);
                         break;
                     case 's':
                         put_gosper_gun(0, 0, LINES, COLS, board);
+                        draw_board(LINES, COLS, board);
                         break;
                     case 'c':
                         memset(board, 0, sizeof(board));
+                        draw_board(LINES, COLS, board);
                         break;
                     case '-':
                         delay *= 2;
@@ -169,6 +176,9 @@ int main(void)
             }
             usleep(delay > 10000 ? 10000 : delay);
             d += 10000;
+            if (should_exit) {
+                goto exit;
+            }
         } while (d < delay);
     }
 

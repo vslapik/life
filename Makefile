@@ -1,4 +1,5 @@
-LDFLAGS=-lncurses
+LDFLAGS = -lncurses
+CFLAGS  = -fsanitize=undefined
 
 all: life.c
-	cc life.c $(LDFLAGS) -o life
+	cc life.c $(LDFLAGS) $(CFLAGS) -o life

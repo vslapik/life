@@ -52,13 +52,14 @@ static void draw_board(int xmax, int ymax, char board[xmax][ymax])
 {
     for (int i = 0; i < xmax; i++) {
         for (int j = 0; j < ymax; j++) {
-            mvaddch(i, j, board[i][j] ? 'o' : ' ');
+            mvaddch(i, j, board[i][j] ? 'o' : ' '); // move and add a character
         }
     }
-    refresh();
+    refresh(); // perform actual drawing
 }
 
-static void put_glider(int x, int y, int xmax, int ymax, char board[xmax][ymax])
+static void put_glider(int x, int y, int xmax, int ymax,
+                       char board[xmax][ymax])
 {
     assert(x + 2 < xmax);
     assert(y + 2 < ymax);
@@ -70,7 +71,8 @@ static void put_glider(int x, int y, int xmax, int ymax, char board[xmax][ymax])
     board[x + 2][y + 2] = 1;
 }
 
-static void put_gosper_gun(int x, int y, int xmax, int ymax, char board[xmax][ymax])
+static void put_gosper_gun(int x, int y, int xmax, int ymax,
+                           char board[xmax][ymax])
 {
     assert(x + 37 < xmax);
     assert(y + 10 < ymax);
@@ -108,7 +110,7 @@ static void fill_random(int xmax, int ymax, char board[xmax][ymax])
     }
 }
 
-void sig_winch(int in)
+static void finish(int in)
 {
     // Resizing is not supported.
     should_exit = true;
@@ -118,13 +120,15 @@ int main(void)
 {
     srand(time(0));
 
-    initscr();
-    cbreak();
-    noecho();
-    clear();
-    curs_set(0);
-    nodelay(stdscr, TRUE);
-    signal(SIGWINCH, sig_winch);
+    initscr(); // initialize the curses library
+    cbreak(); // take input chars one at a time, no wait for \n
+    noecho(); // no echo on input
+    clear(); // clear the screen
+    curs_set(0); // hide the cursor
+    nodelay(stdscr, TRUE); //non-blocking input
+
+    signal(SIGWINCH, finish);
+    signal(SIGINT, finish);
 
     char board[LINES][COLS];
     long long delay = 500000;
@@ -139,7 +143,7 @@ int main(void)
 
         d = 0;
         do {
-            int ch = getch();
+            int ch = getch(); // get input if any
             if (ch != ERR) {
                 switch (ch) {
                     case 'l':
